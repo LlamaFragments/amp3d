@@ -1,4 +1,4 @@
-Amersand-3D
+Amersand 3D
 ===========
 
 A game engine.
