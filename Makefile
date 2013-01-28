@@ -7,7 +7,7 @@ LINKER = g++
 amp3d.o : amp3d.cpp amp3d.h
 	$(COMPILER) $(COMPILER_FLAGS)  amp3d.cpp 
 amp3d : amp3d.o
-	$(LINKER)  amp3d.o  -llua -lglfw -framework Cocoa -framework OpenGL -framework IOKit -o  amp3d
+	$(LINKER)  amp3d.o  -I/usr/local/include -L/usr/local/lib -I/usr/include -L/usr/lib -L/opt/local/include/  -framework Cocoa -framework OpenGL -framework IOKit -o  amp3d -llua -lglfw -lglew
 
 clean :
 	-rm -f *.o amp3d
