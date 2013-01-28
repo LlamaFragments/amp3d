@@ -12,7 +12,6 @@
 #include <GL/glfw.h>
 #include <glm/glm.hpp>
 #include <GLUT/glut.h>
-#include <iostream>
 #include <stdexcept>
 extern "C"
 {
@@ -21,25 +20,28 @@ extern "C"
     #include "lauxlib.h"
 }
 
+//Local includes
+#include "renderer.h"
+
 using namespace std;
 
 //Lua interpreter
 lua_State* L;
 
-glm::vec2 SCREEN_SIZE(1680, 1050);
-
+/*
 static struct
 {
     GLuint vertexBuffer;
     GLuint elementBuffer;
     GLuint textures[2];
 } threeddata;
-
+*/
 int main ( int argc, char *argv[] )
 {
-    int * bagel = malloc(10 * sizeof(int));
+    Renderer renderer;
+    cout << "GOT HERE" << endl;
     //Init GLFW
-    if (glfwInit())
+    if (renderer.Init())
     {
         cout << "GLFW Init succeeded." << endl;
     }
@@ -48,26 +50,8 @@ int main ( int argc, char *argv[] )
         cout << "GLFW Init failed." << endl;
         throw runtime_error("GLFW Init failed.");
     }
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-    int result = glfwOpenWindow(
-                                //width
-                                SCREEN_SIZE.x,
-                                //height
-                                SCREEN_SIZE.y,
-                                //r/g/b bits
-                                8,
-                                8,
-                                8,
-                                //a bits
-                                8,
-                                //depth bits
-                                8,
-                                //stencil bits
-                                8,
-                                //mode
-                                GLFW_FULLSCREEN);
+    cout << "GOT HERE2" << endl;
+    bool result = renderer.OpenWindow();
     if (result)
     {
         cout << "Window opened successfully!" << endl;
@@ -76,24 +60,17 @@ int main ( int argc, char *argv[] )
     {
         cout << "Window opening failed." << endl;
     }
-    
-    glewInit();
-    glClearColor(0.5f, 0.5f, 0.5f, 1);
     int running = GL_TRUE;
     // Main loop
+    
     while( running )
     {
-        // OpenGL rendering goes here...
-        glClear( GL_COLOR_BUFFER_BIT );
-        // Swap front and back rendering buffers
-        glfwSwapBuffers();
+        renderer.DrawFrame();
         // Check if ESC key was pressed or window was closed
         running = !glfwGetKey( GLFW_KEY_ESC ) && glfwGetWindowParam( GLFW_OPENED );
     }
     
-    
-    //glfwCloseWindow();
-    glfwTerminate();
+    renderer.CloseWindow();
     
 	//Initialize Lua
 	L = luaL_newstate();
