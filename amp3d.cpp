@@ -28,18 +28,9 @@ using namespace std;
 //Lua interpreter
 lua_State* L;
 
-/*
-static struct
-{
-    GLuint vertexBuffer;
-    GLuint elementBuffer;
-    GLuint textures[2];
-} threeddata;
-*/
 int main ( int argc, char *argv[] )
 {
     Renderer renderer;
-    cout << "GOT HERE" << endl;
     //Init GLFW
     if (renderer.Init())
     {
@@ -50,7 +41,6 @@ int main ( int argc, char *argv[] )
         cout << "GLFW Init failed." << endl;
         throw runtime_error("GLFW Init failed.");
     }
-    cout << "GOT HERE2" << endl;
     bool result = renderer.OpenWindow();
     if (result)
     {
@@ -61,8 +51,8 @@ int main ( int argc, char *argv[] )
         cout << "Window opening failed." << endl;
     }
     int running = GL_TRUE;
-    // Main loop
     
+    // Main loop
     while( running )
     {
         renderer.DrawFrame();
