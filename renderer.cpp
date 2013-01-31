@@ -8,7 +8,7 @@
 
 #include "renderer.h"
 
-glm::vec2 SCREEN_SIZE(1680, 1050);
+glm::vec2 SCREEN_SIZE(0, 0);
 
 Renderer::Renderer()
 {
@@ -22,6 +22,8 @@ bool Renderer::Init()
     s = s && glfwInit();
     return s;
 }
+
+GLuint vao;
 
 bool Renderer::OpenWindow()
 {
@@ -44,21 +46,25 @@ bool Renderer::OpenWindow()
                                 //stencil bits
                                 8,
                                 //mode
-                                GLFW_FULLSCREEN);
+                                GLFW_WINDOW);
     glClearColor(0.5f, 0.5f, 0.5f, 1);
+    glewExperimental = GL_TRUE;
     glewInit();
     
     //Set everything up
+    //Create vertex buffer
     g_resources.vertexBuffer = MakeBuffer(GL_ARRAY_BUFFER, g_vertex_buffer_data, sizeof(g_vertex_buffer_data));
-    g_resources.elementBuffer = MakeBuffer(GL_ELEMENT_ARRAY_BUFFER, g_element_buffer_data, sizeof(g_element_buffer_data));
+    //g_resources.elementBuffer = MakeBuffer(GL_ELEMENT_ARRAY_BUFFER, g_element_buffer_data, sizeof(g_element_buffer_data));
     g_resources.textures = MakeTexture("image.png");
     cout << g_resources.textures << endl;
     g_resources.vertexShader = MakeShader(GL_VERTEX_SHADER, "shaders/vertex.vert");
     g_resources.fragmentShader = MakeShader(GL_FRAGMENT_SHADER, "shaders/fragment.frag");
     g_resources.shaderProgram = MakeShaderProgram(g_resources.vertexShader, g_resources.fragmentShader);
-    g_resources.uniforms.textures = glGetAttribLocation(g_resources.shaderProgram, "textures");
+    //g_resources.uniforms.textures = glGetAttribLocation(g_resources.shaderProgram, "textures");
     g_resources.attributes.position = glGetAttribLocation(g_resources.shaderProgram, "position");
-    
+    g_resources.attributes.color = glGetAttribLocation(g_resources.shaderProgram, "color");
+    glGenVertexArrays( 1, &vao );
+    glBindVertexArray( vao );
     return (bool) s1;
 }
 
@@ -70,35 +76,35 @@ void Renderer::CloseWindow()
 
 void Renderer::DrawFrame()
 {
-    //glClear( GL_COLOR_BUFFER_BIT );
+    glClearColor( 0.0f, 0.0f, 0.5f, 1.0f );
+    glClear( GL_COLOR_BUFFER_BIT );
     //Use shader program
     glUseProgram(g_resources.shaderProgram);
     //Bind texture
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, g_resources.textures);
-    glUniform1i(g_resources.uniforms.textures, 0);
+    //glActiveTexture(GL_TEXTURE0);
+    //glBindTexture(GL_TEXTURE_2D, g_resources.textures);
+    //glUniform1i(g_resources.uniforms.textures, 0);
     //Set up vertex array
     glBindBuffer(GL_ARRAY_BUFFER, g_resources.vertexBuffer);
-    glVertexAttribPointer(
-                          g_resources.attributes.position,  /* attribute */
-                          2,                                /* size */
-                          GL_FLOAT,                         /* type */
-                          GL_FALSE,                         /* normalized? */
-                          sizeof(GLfloat)*2,                /* stride */
-                          (void*)0                          /* array buffer offset */
-                          );
+    glVertexAttribPointer( g_resources.attributes.position,  2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0 );
+    glVertexAttribPointer( g_resources.attributes.color,  3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (GLvoid *)(2 * sizeof(float)) );
     glEnableVertexAttribArray(g_resources.attributes.position);
+    glEnableVertexAttribArray(g_resources.attributes.color);
     
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_resources.elementBuffer);
-    glDrawElements(
-                   GL_TRIANGLE_STRIP,  /* mode */
-                   4,                  /* count */
-                   GL_UNSIGNED_SHORT,  /* type */
-                   (void*)0            /* element array buffer offset */
-                   );
-    glDisableVertexAttribArray(g_resources.attributes.position);
+    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_resources.elementBuffer);
+    glDrawArrays( GL_TRIANGLES, 0, 3 );
+    /*glDrawElements(
+                   GL_TRIANGLE_STRIP,  
+                   4,                  
+                   GL_UNSIGNED_SHORT,  
+                   (void*)0            
+                   );*/
+    //glDisableVertexAttribArray(g_resources.attributes.position);
     // OpenGL rendering goes here...
     // Swap front and back rendering buffers
+    
+    glDisableVertexAttribArray(g_resources.attributes.position);
+    glDisableVertexAttribArray(g_resources.attributes.color);
     glfwSwapBuffers();
 }
 
@@ -142,44 +148,27 @@ static void show_info_log(GLuint object, PFNGLGETSHADERIVPROC glGet__iv, PFNGLGE
 }
 
 GLuint Renderer::MakeShader(GLenum type, const char * filename)
-{
-    GLint length;
-    /*
-    std::ifstream fileIn;
-    fileIn.open(filename);
-    std::string content;
-    std::getline(fileIn, content, '\0');
-    fileIn.close();
-    cout << "Content length: " << content.length() << endl;
-    cout << "Content: " << content << endl;
-     */
-    
-    
+{   
     //open file
     std::ifstream f;
     f.open(filename, std::ios::in | std::ios::binary);
     if(!f.is_open()){
-        cout << "File not found/something went wrong" << endl;
-        //throw std::runtime_error(std::string("Failed to open file: ") + filePath);
+        cerr << "File not found/something went wrong" << endl;
     }
-    //read whole file into stringstream buffer
+    //Put file into buffer
     std::stringstream buffer;
     buffer << f.rdbuf();
-    
     string a = buffer.str();
     GLchar const * shaderText = a.c_str();
-    cout << a.c_str() << endl;
-    //GLchar* source = file_contents(filename, &length);
     GLuint shader;
     shader = glCreateShader(type);
     glShaderSource(shader, 1, (const GLchar**)&shaderText, NULL);
-    //free(source);
     glCompileShader(shader);
     GLint success;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success)
     {
-        fprintf(stderr, "Failed to compile %s:\n", filename);
+        fprintf(stderr, "Failed to compile shader %s:\n", filename);
         show_info_log(shader, glGetShaderiv, glGetShaderInfoLog);
         glDeleteShader(shader);
         return 0;
@@ -189,13 +178,18 @@ GLuint Renderer::MakeShader(GLenum type, const char * filename)
 
 GLuint Renderer::MakeShaderProgram(GLuint vertexShader, GLuint fragmentShader)
 {
+    //Create new shader program
     GLuint program = glCreateProgram();
+    //Bind vertex and fragment shaders to the program
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
-    glBindFragDataLocation(program, 0, "finalColor");
+    //Set up output of fragment shader
+    glBindFragDataLocation(program, 0, "finalColor" );
+    //Link the shaders
     glLinkProgram(program);
     GLint success;
     glGetProgramiv(program, GL_LINK_STATUS, &success);
+    //Output an error if something went wrong
     if (!success)
     {
         fprintf(stderr, "Failed to link shader program:\n");

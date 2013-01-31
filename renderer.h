@@ -52,16 +52,16 @@ static struct
     
     struct {
         GLint position;
+        GLint color;
     } attributes;
     
 } g_resources;
 
 static const GLfloat g_vertex_buffer_data[] = {
-    -1.0f, -1.0f,
-    1.0f, -1.0f,
-    -1.0f,  1.0f,
-    1.0f,  1.0f
+    0.0f,  0.5f, 1.0f, 0.0f, 0.0f, // Vertex 1: Red
+     0.5f, -0.5f, 0.0f, 1.0f, 0.0f, // Vertex 2: Green
+    -0.5f, -0.5f, 0.0f, 0.0f, 1.0f  // Vertex 3: Blue
 };
-static const GLushort g_element_buffer_data[] = { 0, 1, 2, 3 };
+//static const GLushort g_element_buffer_data[] = { 0, 1, 2, 3 };
 
 #endif /* defined(____renderer__) */
