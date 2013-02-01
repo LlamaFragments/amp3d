@@ -11,7 +11,7 @@ renderer.o : renderer.cpp renderer.h
 lodepng.o : lodepng.cpp lodepng.h
 	$(COMPILER) $(COMPILER_FLAGS)  lodepng.cpp 
 amp3d : amp3d.o renderer.o lodepng.o
-	$(LINKER)  amp3d.o renderer.o lodepng.o -I/usr/local/include -L/usr/local/lib -I/usr/include -L/usr/lib -L/opt/local/include/  -framework Cocoa -framework OpenGL -framework IOKit -o  amp3d -llua -lglfw -lglew
+	$(LINKER)  amp3d.o renderer.o lodepng.o -I/usr/local/include -L/usr/local/lib -I/usr/include -L/usr/lib -L/opt/local/include/ -framework CoreFoundation -framework Cocoa -framework OpenGL -framework IOKit -o  amp3d -llua -lglfw -lglew
 
 clean :
 	-rm -f *.o amp3d

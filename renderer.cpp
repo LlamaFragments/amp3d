@@ -8,7 +8,7 @@
 
 #include "renderer.h"
 
-glm::vec2 SCREEN_SIZE(0, 0);
+glm::vec2 SCREEN_SIZE(1280, 800);
 
 Renderer::Renderer()
 {
@@ -50,27 +50,25 @@ bool Renderer::OpenWindow()
     glClearColor(0.5f, 0.5f, 0.5f, 1);
     glewExperimental = GL_TRUE;
     glewInit();
-    
+
+    glGenVertexArrays( 1, &vao );
+    glBindVertexArray( vao );
     //Set everything up
-    //Create vertex buffer
     g_resources.vertexBuffer = MakeBuffer(GL_ARRAY_BUFFER, g_vertex_buffer_data, sizeof(g_vertex_buffer_data));
-    //g_resources.elementBuffer = MakeBuffer(GL_ELEMENT_ARRAY_BUFFER, g_element_buffer_data, sizeof(g_element_buffer_data));
+    g_resources.elementBuffer = MakeBuffer(GL_ELEMENT_ARRAY_BUFFER, g_element_buffer_data, sizeof(g_element_buffer_data));
     g_resources.textures = MakeTexture("image.png");
-    cout << g_resources.textures << endl;
     g_resources.vertexShader = MakeShader(GL_VERTEX_SHADER, "shaders/vertex.vert");
     g_resources.fragmentShader = MakeShader(GL_FRAGMENT_SHADER, "shaders/fragment.frag");
     g_resources.shaderProgram = MakeShaderProgram(g_resources.vertexShader, g_resources.fragmentShader);
-    //g_resources.uniforms.textures = glGetAttribLocation(g_resources.shaderProgram, "textures");
+    g_resources.uniforms.textures = glGetAttribLocation(g_resources.shaderProgram, "textures");
     g_resources.attributes.position = glGetAttribLocation(g_resources.shaderProgram, "position");
     g_resources.attributes.color = glGetAttribLocation(g_resources.shaderProgram, "color");
-    glGenVertexArrays( 1, &vao );
-    glBindVertexArray( vao );
+    
     return (bool) s1;
 }
 
 void Renderer::CloseWindow()
 {
-    //glfwCloseWindow();
     glfwTerminate();
 }
 
@@ -80,31 +78,21 @@ void Renderer::DrawFrame()
     glClear( GL_COLOR_BUFFER_BIT );
     //Use shader program
     glUseProgram(g_resources.shaderProgram);
-    //Bind texture
-    //glActiveTexture(GL_TEXTURE0);
-    //glBindTexture(GL_TEXTURE_2D, g_resources.textures);
-    //glUniform1i(g_resources.uniforms.textures, 0);
-    //Set up vertex array
-    glBindBuffer(GL_ARRAY_BUFFER, g_resources.vertexBuffer);
-    glVertexAttribPointer( g_resources.attributes.position,  2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0 );
-    glVertexAttribPointer( g_resources.attributes.color,  3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (GLvoid *)(2 * sizeof(float)) );
+    //Set up attribute pointers for vertex position and color, and textures.
+    glVertexAttribPointer( g_resources.attributes.position,  2, GL_FLOAT, GL_FALSE, 7 * sizeof(float), 0 );
+    glVertexAttribPointer( g_resources.attributes.color,  3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (GLvoid *)(2 * sizeof(float)) );
+    GLint texAttrib = glGetAttribLocation( g_resources.shaderProgram, "texcoord" );
+    glEnableVertexAttribArray( texAttrib );
+    glVertexAttribPointer( texAttrib, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (GLvoid*)( 5 * sizeof(float) ) );
+    //Enable attribute arrays
     glEnableVertexAttribArray(g_resources.attributes.position);
     glEnableVertexAttribArray(g_resources.attributes.color);
-    
-    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_resources.elementBuffer);
-    glDrawArrays( GL_TRIANGLES, 0, 3 );
-    /*glDrawElements(
-                   GL_TRIANGLE_STRIP,  
-                   4,                  
-                   GL_UNSIGNED_SHORT,  
-                   (void*)0            
-                   );*/
-    //glDisableVertexAttribArray(g_resources.attributes.position);
-    // OpenGL rendering goes here...
-    // Swap front and back rendering buffers
-    
+    //Draw
+    glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0 );
+    //Disable attribute arrays
     glDisableVertexAttribArray(g_resources.attributes.position);
     glDisableVertexAttribArray(g_resources.attributes.color);
+    //Swap buffers
     glfwSwapBuffers();
 }
 
@@ -120,19 +108,16 @@ GLuint Renderer::MakeBuffer(GLenum targetBuffer, const void* bufferData, GLsizei
 GLuint Renderer::MakeTexture(const char * filename)
 {
     GLuint texture;
+    
     unsigned w, h;
     std::vector<unsigned char> pixels;
     lodepng::decode(pixels, w, h, filename);
-    
-    //lodepng_decode24_file(pixels, &w, &h, filename);
-    
     glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE,  pixels.data() );
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,     GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,     GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, w, h, 0, GL_BGR, GL_UNSIGNED_BYTE, &pixels[0]);
     return texture;
 }
 
@@ -160,12 +145,15 @@ GLuint Renderer::MakeShader(GLenum type, const char * filename)
     buffer << f.rdbuf();
     string a = buffer.str();
     GLchar const * shaderText = a.c_str();
+
     GLuint shader;
     shader = glCreateShader(type);
+    //Add the shader text to the shader and compile it
     glShaderSource(shader, 1, (const GLchar**)&shaderText, NULL);
     glCompileShader(shader);
     GLint success;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+    //Print stuff if something goes wrong
     if (!success)
     {
         fprintf(stderr, "Failed to compile shader %s:\n", filename);
