@@ -55,16 +55,28 @@ bool Renderer::OpenWindow()
     glBindVertexArray( vao );
     //Set everything up
     g_resources.vertexBuffer = MakeBuffer(GL_ARRAY_BUFFER, g_vertex_buffer_data, sizeof(g_vertex_buffer_data));
-    g_resources.elementBuffer = MakeBuffer(GL_ELEMENT_ARRAY_BUFFER, g_element_buffer_data, sizeof(g_element_buffer_data));
+    //g_resources.elementBuffer = MakeBuffer(GL_ELEMENT_ARRAY_BUFFER, g_element_buffer_data, sizeof(g_element_buffer_data));
     g_resources.textures = MakeTexture("image.png");
     g_resources.vertexShader = MakeShader(GL_VERTEX_SHADER, "shaders/vertex.vert");
     g_resources.fragmentShader = MakeShader(GL_FRAGMENT_SHADER, "shaders/fragment.frag");
     g_resources.shaderProgram = MakeShaderProgram(g_resources.vertexShader, g_resources.fragmentShader);
+    glUseProgram(g_resources.shaderProgram);
     g_resources.uniforms.textures = glGetAttribLocation(g_resources.shaderProgram, "textures");
     g_resources.attributes.position = glGetAttribLocation(g_resources.shaderProgram, "position");
     g_resources.attributes.color = glGetAttribLocation(g_resources.shaderProgram, "color");
     
+    //Use shader program
+    GLint uniTrans = glGetUniformLocation( g_resources.shaderProgram, "trans" );
+    glUniformMatrix4fv( uniTrans, 1, GL_FALSE, glm::value_ptr( trans ) );
+    uniModel = glGetUniformLocation( g_resources.shaderProgram, "model" );
+    uniView = glGetUniformLocation( g_resources.shaderProgram, "view" );
+    uniProj = glGetUniformLocation( g_resources.shaderProgram, "proj" );
+    rot = 0.0f;
     return (bool) s1;
+
+   
+    
+    
 }
 
 void Renderer::CloseWindow()
@@ -74,21 +86,67 @@ void Renderer::CloseWindow()
 
 void Renderer::DrawFrame()
 {
+    //glm::mat4 trans;
+    //trans = glm::rotate( trans, 180.0f, glm::vec3( 0.0f, 0.0f, 1.0f ) );
+
+    glm::mat4 model;
+    model = glm::rotate(
+        model,
+        0.0f,//(float)clock() / (float)CLOCKS_PER_SEC * 1800.0f,
+        glm::vec3( 0.0f, 0.0f, 1.0f )
+    );
+    glUniformMatrix4fv( uniModel, 1, GL_FALSE, glm::value_ptr( model ) );
+    int mouseX;
+    int mouseY;
+    glfwGetMousePos(&mouseX, &mouseY);
+    //glfwDisable( GLFW_MOUSE_CURSOR );
+    rot += (mouseX - lastMouseX)/250.0f;
+    
+    rot2 += (mouseY- lastMouseY)/250.0f;
+
+    if (rot2 > 90.0f)
+    {
+        rot2 = 90.0f;
+    }
+    if (rot2 < 0.0f)
+    {
+        rot2 = 0.0f;
+    }
+    
+    lastMouseX = mouseX;
+    lastMouseY = mouseY;
+
+    //float rot = (float)clock() / (float)CLOCKS_PER_SEC * 18.0f;
+    float xpos = sin(rot2) * cos(rot);
+    float ypos = sin(rot) * sin(rot2);
+    float zpos = cos(rot2);
+    glm::vec3 pos = glm::vec3(3 * xpos, 3 * ypos, 3 * zpos);
+    glm::mat4 view = glm::lookAt(
+        pos,
+    //glm::vec3( 1.2f, 1.2f, 1.2f ),
+    glm::vec3( 0.0f, 0.0f, 0.0f ),
+    glm::vec3( 0.0f, 0.0f, 1.0f )
+    );
+    glUniformMatrix4fv( uniView, 1, GL_FALSE, glm::value_ptr( view ) );
+
+    glm::mat4 proj = glm::perspective( 45.0f, SCREEN_SIZE.x / SCREEN_SIZE.y, 1.0f, 10.0f );
+    glUniformMatrix4fv( uniProj, 1, GL_FALSE, glm::value_ptr( proj ) );
+    
     glClearColor( 0.0f, 0.0f, 0.5f, 1.0f );
-    glClear( GL_COLOR_BUFFER_BIT );
-    //Use shader program
-    glUseProgram(g_resources.shaderProgram);
+    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
     //Set up attribute pointers for vertex position and color, and textures.
-    glVertexAttribPointer( g_resources.attributes.position,  2, GL_FLOAT, GL_FALSE, 7 * sizeof(float), 0 );
-    glVertexAttribPointer( g_resources.attributes.color,  3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (GLvoid *)(2 * sizeof(float)) );
+    glVertexAttribPointer( g_resources.attributes.position,  3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), 0 );
+    glVertexAttribPointer( g_resources.attributes.color,  3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (GLvoid *)(3 * sizeof(float)) );
     GLint texAttrib = glGetAttribLocation( g_resources.shaderProgram, "texcoord" );
     glEnableVertexAttribArray( texAttrib );
-    glVertexAttribPointer( texAttrib, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (GLvoid*)( 5 * sizeof(float) ) );
+    glVertexAttribPointer( texAttrib, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (GLvoid*)( 6 * sizeof(float) ) );
     //Enable attribute arrays
     glEnableVertexAttribArray(g_resources.attributes.position);
     glEnableVertexAttribArray(g_resources.attributes.color);
     //Draw
-    glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0 );
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    //glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0 );
     //Disable attribute arrays
     glDisableVertexAttribArray(g_resources.attributes.position);
     glDisableVertexAttribArray(g_resources.attributes.color);
@@ -157,7 +215,7 @@ GLuint Renderer::MakeShader(GLenum type, const char * filename)
     if (!success)
     {
         fprintf(stderr, "Failed to compile shader %s:\n", filename);
-        show_info_log(shader, glGetShaderiv, glGetShaderInfoLog);
+        //show_info_log(shader, glGetShaderiv, glGetShaderInfoLog);
         glDeleteShader(shader);
         return 0;
     }
@@ -181,7 +239,7 @@ GLuint Renderer::MakeShaderProgram(GLuint vertexShader, GLuint fragmentShader)
     if (!success)
     {
         fprintf(stderr, "Failed to link shader program:\n");
-        show_info_log(program, glGetProgramiv, glGetProgramInfoLog);
+        //show_info_log(program, glGetProgramiv, glGetProgramInfoLog);
         glDeleteProgram(program);
         return 0;
     }

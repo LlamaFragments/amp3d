@@ -16,6 +16,8 @@
 #include <GL/glew.h>
 #include <GL/glfw.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <GLUT/glut.h>
 #include <png.h>
 
@@ -24,22 +26,7 @@
 
 using namespace std;
 
-class Renderer
-{
-public:
-    Renderer();
-    bool Init();
-    bool OpenWindow();
-    void CloseWindow();
-    void DrawFrame();
-private:
-    GLuint MakeBuffer(GLenum targetBuffer, const void* bufferData, GLsizei bufferSize);
-    GLuint MakeTexture(const char * filename);
-    
-    GLuint MakeShader(GLenum type, const char * filename);
-    GLuint MakeShaderProgram(GLuint vertexShader, GLuint fragmentShader);
-};
-static struct
+struct G_resources
 {
     GLuint vertexBuffer;
     GLuint elementBuffer;
@@ -55,15 +42,90 @@ static struct
         GLint color;
     } attributes;
     
-} g_resources;
+};
+
+class Renderer
+{
+public:
+    Renderer();
+    bool Init();
+    bool OpenWindow();
+    void CloseWindow();
+    void DrawFrame();
+    G_resources g_resources;
+    glm::mat4 trans;
+    GLint uniModel;
+    GLint uniView;
+    GLint uniProj;
+    float rot;
+    float rot2;
+    int lastMouseX;
+    int lastMouseY;
+private:
+    GLuint MakeBuffer(GLenum targetBuffer, const void* bufferData, GLsizei bufferSize);
+    GLuint MakeTexture(const char * filename);
+    
+    /**
+     * Compiles a shader from file filename.
+     * @param type The type of shader to create
+     * @param filename The shader file to compile
+     * @return GLint reference to complied shader
+    */
+    GLuint MakeShader(GLenum type, const char * filename);
+    /**
+     * Links together a shader program from a vertex and fragment shader.
+     * @param vertexShader The vertex shader to link
+     * @param fragmentShader The fragment shader to link
+     * @return GLint reference to complied program
+    */
+    GLuint MakeShaderProgram(GLuint vertexShader, GLuint fragmentShader);
+};
 
 static const GLfloat g_vertex_buffer_data[] = {
-//  Position      Color             Texcoords
-    -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, // Top-left
-     0.5f,  0.5f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, // Top-right
-     0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, // Bottom-right
-    -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f  // Bottom-left
+   // X      Y     Z     R     G     B     U     V
+    -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+
+        -0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+
+        -0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+
+         0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+         0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+
+        -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+
+        -0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f
 };
+
 static const GLushort g_element_buffer_data[] = {
     0, 1, 2,
     2, 3, 0
